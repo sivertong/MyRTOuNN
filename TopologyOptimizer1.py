@@ -19,7 +19,7 @@ class TopologyOptimizer:
 
         self.densityProjection = densityProjection
 
-        inputDim = 1 # x and y coordn
+        inputDim = 25600 # x and y coordn
         self.topNet = TopNet(nnSettings, inputDim).to(self.device)
         self.objective = 0.
 
@@ -67,13 +67,14 @@ class TopologyOptimizer:
 
 
         x = torch.tensor(eigvalVec).view(-1, 1).float().to(self.device)
+        x = eIntopMat
 
         # x = torch.tensor(range(54)).view(-1, 1).float().to(self.device)
 
         maxEpochs = 500
 
 
-        learningRate = 0.05
+        learningRate = 0.08
         alphaMax = 100*self.desiredVolumeFraction # alpha is a penal parameter, ensure constarin
         alphaIncrement= 0.1   # 在本例程中，同样使用惩罚法构建优化目标函数以及其对应的loss
         alpha = alphaIncrement # start
@@ -95,17 +96,20 @@ class TopologyOptimizer:
             nn_eta = torch.flatten(self.topNet(x))
 
             nn_ePhi = torch.matmul(eIntopMat.t().to(self.device), nn_eta)  # eta to ePhi
+
+            #  此操作废弃
+            # if epoch>200:
+            #     low = -0.99
+            #     up = 1
+            # if 100<epoch<=200 :
+            #     low = -0.80
+            #     up = 0.80
+            # if epoch < 100:
+            #     low = -0.1
+            #     up = 0.1
+
             # 超出[-1,1]区间的值被拉回
-            if epoch>200:
-                low = -0.99
-                up = 1
-            if 100<epoch<=200 :
-                low = -0.80
-                up = 0.80
-            if epoch < 100:
-                low = -0.1
-                up = 0.1
-            nn_ePhi = torch.clamp(nn_ePhi, min=low, max=up)
+            nn_ePhi = torch.clamp(nn_ePhi, min=-0.99, max=1)
             nn_rho = 0.5+0.5*nn_ePhi
 
             # 结构清晰化投影
@@ -121,7 +125,7 @@ class TopologyOptimizer:
 
             Jelem = np.array(self.FE.Emax*(rho_np**(2*self.FE.penal))*Jelem).reshape(-1)
             Jelem = torch.tensor(Jelem).view(-1).float().to(self.device)
-            objective = torch.sum(torch.div(Jelem,nn_rho**self.FE.penal))  # compliance
+            objective = torch.sum(torch.div(Jelem,nn_rho**self.FE.penal))/self.obj0  # compliance
 
 
             volConstraint = ((torch.mean(nn_rho) / self.desiredVolumeFraction) - 1.0)
