@@ -5,6 +5,9 @@ Created on Fri Apr 14 21:13:00 2023
 @author: long
 """
 
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 import numpy as np
 import time
 import matplotlib.pyplot as plt
